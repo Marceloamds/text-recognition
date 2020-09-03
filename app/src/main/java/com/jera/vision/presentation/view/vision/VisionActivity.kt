@@ -38,6 +38,7 @@ class VisionActivity : BaseActivity() {
     private lateinit var textRecognizer: TextRecognizer
 
     private lateinit var binding: ActivityVisionBinding
+    private lateinit var adapter: MonthConsumptionAdapter
     var currentBill: Bill = CopelBill()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,10 +56,11 @@ class VisionActivity : BaseActivity() {
                     }
                 }.let(CompositeDisposable()::add)
         }
+        adapter = MonthConsumptionAdapter()
+        binding.recyclerResult.adapter = adapter
 
         with(binding.spinnerBillType) {
-            adapter =
-                BillTypesAdapter(this@VisionActivity, R.layout.support_simple_spinner_dropdown_item)
+            adapter = BillTypesAdapter(this@VisionActivity, R.layout.support_simple_spinner_dropdown_item)
             onItemSelectedListener = SpinnerSelectionHelper(this, ::onSpinnerItemSelected)
         }
     }
@@ -75,29 +77,12 @@ class VisionActivity : BaseActivity() {
                 val bitmap = getBitmap(this)
                 bitmap?.run {
                     textRecognizer.process(InputImage.fromBitmap(this, 0)).addOnSuccessListener {
-                        binding.tvResult.setText(getTextFromBlocks(it.textBlocks))
+                        adapter.submitList(currentBill.getConsumptionList(it.textBlocks))
                     }
                 }
             }
         }
     }
-
-    private fun getTextFromBlocks(textBlocks: List<Text.TextBlock>): String {
-        val consumptionList = currentBill.getConsumptionList(textBlocks)
-        var formattedText = ""
-        consumptionList.sortedByDescending { it.month }.forEach {
-            formattedText += formatText(it)
-        }
-        return formattedText
-    }
-
-    private fun formatText(monthConsumption: MonthConsumption): String {
-        return monthConsumption.month.format("MMMM").toLowerCase().capitalize() +
-                "/" +
-                monthConsumption.month.format("YYYY") +
-                "   kWh: ${monthConsumption.kWhConsumption} \n"
-    }
-
 
     private fun getBitmap(file: Uri): Bitmap? {
         return try {
