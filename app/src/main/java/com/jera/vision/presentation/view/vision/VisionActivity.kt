@@ -52,9 +52,6 @@ class VisionActivity : BaseActivity() {
                 .subscribe { granted: Boolean ->
                     if (granted) {
                         CropImage.startPickImageActivity(this)
-//                        val galleryIntent =
-//                            Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-//                        startActivityForResult(galleryIntent, GALLERY_REQUEST_CODE)
                     }
                 }.let(CompositeDisposable()::add)
         }
@@ -128,50 +125,6 @@ class VisionActivity : BaseActivity() {
             e.printStackTrace()
             null
         }
-    }
-
-
-    // Trying to sort from left to right without messing up the order. Couldn't do it
-    private fun List<Text.Element>.sortedByPixelPosition(): List<Text.Element> {
-
-        val varianceList = mutableListOf<Text.Element>()
-        val parentsIndex = mutableListOf<Int>()
-        var isParent: Boolean
-
-        forEachIndexed { index, element ->
-            isParent = true
-            parentsIndex.forEachIndexed { index2, parentIndex ->
-                if (
-                    element.cornerPoints != null &&
-                    element.cornerPoints!![0].x > varianceList[parentIndex].cornerPoints?.get(0)?.x!! - TAG_VARIANCE &&
-                    isParent
-                ) {
-                    isParent = false
-                    if (index2 == parentsIndex.lastIndex) varianceList.add(element)
-                    else varianceList.add(parentsIndex[index2 + 1] - 1, element)
-                }
-            }
-
-            if (isParent) {
-                varianceList.add(element)
-                parentsIndex.add(index)
-            }
-        }
-
-        val sortedList = mutableListOf<List<Text.Element>>()
-        parentsIndex.forEachIndexed { index, parentIndex ->
-            if (index == parentsIndex.lastIndex) {
-                sortedList.add(varianceList.slice(parentIndex..varianceList.lastIndex))
-            } else {
-                sortedList.add(varianceList.slice(parentIndex until parentsIndex[index + 1]))
-            }
-        }
-
-        val finalList = mutableListOf<Text.Element>()
-        sortedList.sortedBy { it.firstOrNull()?.cornerPoints?.get(0)?.x }
-            .forEach { finalList.addAll(it) }
-
-        return finalList
     }
 
     companion object {
