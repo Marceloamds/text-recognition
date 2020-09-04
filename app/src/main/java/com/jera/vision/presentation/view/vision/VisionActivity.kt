@@ -9,9 +9,9 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
 import androidx.annotation.RequiresApi
 import androidx.databinding.DataBindingUtil
+import com.camerakit.CameraKitView
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -27,6 +27,8 @@ import com.jera.vision.presentation.util.SpinnerSelectionHelper
 import com.jera.vision.presentation.util.base.BaseActivity
 import com.jera.vision.presentation.util.base.BaseViewModel
 import com.tbruyelle.rxpermissions2.RxPermissions
+import com.theartofdev.edmodo.cropper.CropImage
+import com.theartofdev.edmodo.cropper.CropImageView
 import io.reactivex.disposables.CompositeDisposable
 import org.koin.android.viewmodel.ext.android.viewModel
 import java.io.IOException
@@ -40,6 +42,7 @@ class VisionActivity : BaseActivity() {
     private lateinit var binding: ActivityVisionBinding
     var currentBill: Bill = CopelBill()
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_vision)
@@ -49,9 +52,10 @@ class VisionActivity : BaseActivity() {
                 .request(Manifest.permission.READ_EXTERNAL_STORAGE)
                 .subscribe { granted: Boolean ->
                     if (granted) {
-                        val galleryIntent =
-                            Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                        startActivityForResult(galleryIntent, GALLERY_REQUEST_CODE)
+                        CropImage.startPickImageActivity(this)
+//                        val galleryIntent =
+//                            Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+//                        startActivityForResult(galleryIntent, GALLERY_REQUEST_CODE)
                     }
                 }.let(CompositeDisposable()::add)
         }
@@ -70,8 +74,16 @@ class VisionActivity : BaseActivity() {
     @RequiresApi(Build.VERSION_CODES.P)
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == GALLERY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            data?.data?.run {
+        if (requestCode == CropImage.PICK_IMAGE_CHOOSER_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            var imageUri = CropImage.getPickImageResultUri(this, data)
+            startCrop(imageUri)
+        }
+
+        if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE) {
+            val result = CropImage.getActivityResult(data)
+            var resultUri: Uri = result.uri
+
+            resultUri?.run {
                 val bitmap = getBitmap(this)
                 bitmap?.run {
                     textRecognizer.process(InputImage.fromBitmap(this, 0)).addOnSuccessListener {
@@ -80,6 +92,13 @@ class VisionActivity : BaseActivity() {
                 }
             }
         }
+    }
+
+    private fun startCrop(imageUri: Uri) {
+        CropImage.activity(imageUri)
+            .setGuidelines(CropImageView.Guidelines.ON)
+            .setMultiTouchEnabled(true)
+            .start(this)
     }
 
     private fun getTextFromBlocks(textBlocks: List<Text.TextBlock>): String {
@@ -98,7 +117,6 @@ class VisionActivity : BaseActivity() {
                 "   kWh: ${monthConsumption.kWhConsumption} \n"
     }
 
-
     private fun getBitmap(file: Uri): Bitmap? {
         return try {
             val inputStream = contentResolver.openInputStream(file)
@@ -109,50 +127,6 @@ class VisionActivity : BaseActivity() {
             e.printStackTrace()
             null
         }
-    }
-
-
-    // Trying to sort from left to right without messing up the order. Couldn't do it
-    private fun List<Text.Element>.sortedByPixelPosition(): List<Text.Element> {
-
-        val varianceList = mutableListOf<Text.Element>()
-        val parentsIndex = mutableListOf<Int>()
-        var isParent: Boolean
-
-        forEachIndexed { index, element ->
-            isParent = true
-            parentsIndex.forEachIndexed { index2, parentIndex ->
-                if (
-                    element.cornerPoints != null &&
-                    element.cornerPoints!![0].x > varianceList[parentIndex].cornerPoints?.get(0)?.x!! - TAG_VARIANCE &&
-                    isParent
-                ) {
-                    isParent = false
-                    if (index2 == parentsIndex.lastIndex) varianceList.add(element)
-                    else varianceList.add(parentsIndex[index2 + 1] - 1, element)
-                }
-            }
-
-            if (isParent) {
-                varianceList.add(element)
-                parentsIndex.add(index)
-            }
-        }
-
-        val sortedList = mutableListOf<List<Text.Element>>()
-        parentsIndex.forEachIndexed { index, parentIndex ->
-            if (index == parentsIndex.lastIndex) {
-                sortedList.add(varianceList.slice(parentIndex..varianceList.lastIndex))
-            } else {
-                sortedList.add(varianceList.slice(parentIndex until parentsIndex[index + 1]))
-            }
-        }
-
-        val finalList = mutableListOf<Text.Element>()
-        sortedList.sortedBy { it.firstOrNull()?.cornerPoints?.get(0)?.x }
-            .forEach { finalList.addAll(it) }
-
-        return finalList
     }
 
     companion object {

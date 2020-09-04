@@ -84,4 +84,11 @@ dependencies {
 
     //rxpermissions
     implementation 'com.github.tbruyelle:rxpermissions:0.10.2'
+
+    //image cropper
+    api 'com.theartofdev.edmodo:android-image-cropper:2.8.+'
+
+    //Camera Kit Google
+    implementation 'com.camerakit:camerakit:1.0.0-beta3.11'
+    implementation 'com.camerakit:jpegkit:0.1.0'
 }
