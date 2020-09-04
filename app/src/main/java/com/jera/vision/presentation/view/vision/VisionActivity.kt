@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.Bundle
 import androidx.annotation.RequiresApi
 import androidx.databinding.DataBindingUtil
-import com.camerakit.CameraKitView
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
@@ -40,8 +39,8 @@ class VisionActivity : BaseActivity() {
     private lateinit var textRecognizer: TextRecognizer
 
     private lateinit var binding: ActivityVisionBinding
+    private lateinit var adapter: MonthConsumptionAdapter
     var currentBill: Bill = CopelBill()
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,10 +58,11 @@ class VisionActivity : BaseActivity() {
                     }
                 }.let(CompositeDisposable()::add)
         }
+        adapter = MonthConsumptionAdapter()
+        binding.recyclerResult.adapter = adapter
 
         with(binding.spinnerBillType) {
-            adapter =
-                BillTypesAdapter(this@VisionActivity, R.layout.support_simple_spinner_dropdown_item)
+            adapter = BillTypesAdapter(this@VisionActivity, R.layout.support_simple_spinner_dropdown_item)
             onItemSelectedListener = SpinnerSelectionHelper(this, ::onSpinnerItemSelected)
         }
     }
@@ -87,7 +87,7 @@ class VisionActivity : BaseActivity() {
                 val bitmap = getBitmap(this)
                 bitmap?.run {
                     textRecognizer.process(InputImage.fromBitmap(this, 0)).addOnSuccessListener {
-                        binding.tvResult.setText(getTextFromBlocks(it.textBlocks))
+                        adapter.submitList(currentBill.getConsumptionList(it.textBlocks))
                     }
                 }
             }
@@ -117,6 +117,7 @@ class VisionActivity : BaseActivity() {
                 "   kWh: ${monthConsumption.kWhConsumption} \n"
     }
 
+
     private fun getBitmap(file: Uri): Bitmap? {
         return try {
             val inputStream = contentResolver.openInputStream(file)
@@ -127,6 +128,50 @@ class VisionActivity : BaseActivity() {
             e.printStackTrace()
             null
         }
+    }
+
+
+    // Trying to sort from left to right without messing up the order. Couldn't do it
+    private fun List<Text.Element>.sortedByPixelPosition(): List<Text.Element> {
+
+        val varianceList = mutableListOf<Text.Element>()
+        val parentsIndex = mutableListOf<Int>()
+        var isParent: Boolean
+
+        forEachIndexed { index, element ->
+            isParent = true
+            parentsIndex.forEachIndexed { index2, parentIndex ->
+                if (
+                    element.cornerPoints != null &&
+                    element.cornerPoints!![0].x > varianceList[parentIndex].cornerPoints?.get(0)?.x!! - TAG_VARIANCE &&
+                    isParent
+                ) {
+                    isParent = false
+                    if (index2 == parentsIndex.lastIndex) varianceList.add(element)
+                    else varianceList.add(parentsIndex[index2 + 1] - 1, element)
+                }
+            }
+
+            if (isParent) {
+                varianceList.add(element)
+                parentsIndex.add(index)
+            }
+        }
+
+        val sortedList = mutableListOf<List<Text.Element>>()
+        parentsIndex.forEachIndexed { index, parentIndex ->
+            if (index == parentsIndex.lastIndex) {
+                sortedList.add(varianceList.slice(parentIndex..varianceList.lastIndex))
+            } else {
+                sortedList.add(varianceList.slice(parentIndex until parentsIndex[index + 1]))
+            }
+        }
+
+        val finalList = mutableListOf<Text.Element>()
+        sortedList.sortedBy { it.firstOrNull()?.cornerPoints?.get(0)?.x }
+            .forEach { finalList.addAll(it) }
+
+        return finalList
     }
 
     companion object {

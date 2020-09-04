@@ -22,12 +22,6 @@ Strings constructor(private val context: Context) {
     val errorUnprocessableEntity: String get() = res(R.string.error_unprocessable_entity)
     val globalTryAgain: String get() = res(R.string.global_try_again)
     val globalOk: String get() = res(R.string.global_ok)
-    val emptyFieldsErrorTitle: String = res(R.string.empty_currencies_error)
-    val emptyCurrenciesError: String = res(R.string.empty_currencies_error)
-    val emptyValueError: String = res(R.string.empty_value_error)
-    val conversionError: String = res(R.string.conversion_error)
-    val currentQuotesError: String = res(R.string.current_quotes_error)
-    val currencyListError: String = res(R.string.currency_list_error)
 
     private fun res(@StringRes stringId: Int) = context.getString(stringId)
 }
