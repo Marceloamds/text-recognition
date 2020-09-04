@@ -6,6 +6,7 @@
     <string name="global_send">Enviar</string>
     <string name="global_error">Erro</string>
     <string name="global_cancel">Cancelar</string>
+    <string name="global_blank"></string>
     <!--Error Strings-->
     <string name="error_title">Oops!</string>
     <string name="error_socket_timeout">Não foi possível completar a operação. Conexão expirada.</string>
@@ -22,4 +23,7 @@
     <!--Month Consumption-->
     <string name="month_year_template">%s/%s</string>
     <string name="kwh_consumption_template">%.2f kwH</string>
+    <!-- Vision Activity -->
+    <string name="select_image_explanation">Selecione o tipo de fatura e em seguida faça o upload da imagem desejada \n\n A foto precisa ser recortada na parte em que os últimos meses e consumos são mostrados</string>
+    <string name="no_month_consumption_text">Não foi possível encontrar meses de consumo na foto. \n\n Verifique se o tipo da fatura está condizente com a imagem enviada</string>
 </resources>

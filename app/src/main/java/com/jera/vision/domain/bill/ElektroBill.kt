@@ -2,14 +2,11 @@ package com.jera.vision.domain.bill
 
 import com.google.mlkit.vision.text.Text
 import com.jera.vision.domain.entity.MonthConsumption
-import com.jera.vision.domain.util.resource.createMonthsList
-import com.jera.vision.domain.util.resource.isOnLeftOf
-import com.jera.vision.domain.util.resource.matchesVertically
-import com.jera.vision.domain.util.resource.withYear
+import com.jera.vision.domain.util.resource.*
 import com.jera.vision.presentation.util.extension.isEqualString
 
-data class Energisa2Bill(
-    override val name: String = "Energisa MS"
+data class ElektroBill(
+    override val name: String = "Elektro"
 ) : Bill(name) {
 
     override fun toString(): String {
@@ -41,15 +38,13 @@ data class Energisa2Bill(
                     val year = splittedText[1]
                     monthList.forEach { monthConstant ->
                         if (monthConstant.isEqualString(month)) {
-                            val dateWithYear = monthConstant.withYear(year.toIntOrNull() ?: 2000)
+                            val dateWithYear = monthConstant.withYear(year.toIntOrNull() ?: 2020)
                             numberList.forEach { numberElement ->
-                                if (element.matchesVertically(numberElement.cornerPoints)) {
+                                if (numberElement.matchesHorizontally(element.cornerPoints)) {
                                     monthComsumptionList.add(
                                         MonthConsumption(
                                             dateWithYear,
-                                            numberElement.text.toDouble(),
-                                            element,
-                                            numberElement
+                                            numberElement.text.toDouble()
                                         )
                                     )
                                 }

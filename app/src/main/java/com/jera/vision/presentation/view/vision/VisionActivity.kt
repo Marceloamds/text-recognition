@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.view.View
 import androidx.annotation.RequiresApi
 import androidx.databinding.DataBindingUtil
 import com.google.mlkit.vision.common.InputImage
@@ -21,8 +22,6 @@ import com.jera.vision.databinding.ActivityVisionBinding
 import com.jera.vision.domain.bill.Bill
 import com.jera.vision.domain.bill.CopelBill
 import com.jera.vision.domain.bill.CopelBill.Companion.TAG_VARIANCE
-import com.jera.vision.domain.entity.MonthConsumption
-import com.jera.vision.domain.util.resource.format
 import com.jera.vision.presentation.util.SpinnerSelectionHelper
 import com.jera.vision.presentation.util.base.BaseActivity
 import com.jera.vision.presentation.util.base.BaseViewModel
@@ -60,7 +59,8 @@ class VisionActivity : BaseActivity() {
         binding.recyclerResult.adapter = adapter
 
         with(binding.spinnerBillType) {
-            adapter = BillTypesAdapter(this@VisionActivity, R.layout.support_simple_spinner_dropdown_item)
+            adapter =
+                BillTypesAdapter(this@VisionActivity, R.layout.support_simple_spinner_dropdown_item)
             onItemSelectedListener = SpinnerSelectionHelper(this, ::onSpinnerItemSelected)
         }
     }
@@ -77,7 +77,13 @@ class VisionActivity : BaseActivity() {
                 val bitmap = getBitmap(this)
                 bitmap?.run {
                     textRecognizer.process(InputImage.fromBitmap(this, 0)).addOnSuccessListener {
-                        adapter.submitList(currentBill.getConsumptionList(it.textBlocks))
+                        val monthConsumptionList = currentBill.getConsumptionList(it.textBlocks)
+                        adapter.submitList(monthConsumptionList)
+                        binding.textViewExplanation.text = getString(
+                            if (monthConsumptionList.isEmpty()) R.string.no_month_consumption_text
+                            else R.string.global_blank
+                        )
+                        binding.textViewExplanation.visibility = if (monthConsumptionList.isEmpty()) View.VISIBLE else View.GONE
                     }
                 }
             }

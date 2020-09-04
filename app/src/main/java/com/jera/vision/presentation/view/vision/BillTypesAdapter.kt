@@ -17,7 +17,10 @@ class BillTypesAdapter(
         AesSulBill(),
         CelgBill(),
         EnergisaBill(),
-        Energisa2Bill()
+        Energisa2Bill(),
+        ElektroBill(),
+        CebBill(),
+        CelpaBill()
     )
 
     override fun getCount() = bills.size
