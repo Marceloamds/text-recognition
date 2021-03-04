@@ -7,28 +7,31 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
+import android.util.Log
 import android.view.View
-import androidx.annotation.RequiresApi
+import android.widget.Toast
+import androidx.camera.core.AspectRatio
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
 import androidx.databinding.DataBindingUtil
 import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.TextRecognizer
 import com.jera.vision.R
 import com.jera.vision.databinding.ActivityVisionBinding
-import com.jera.vision.domain.bill.Bill
-import com.jera.vision.domain.bill.CopelBill
-import com.jera.vision.domain.bill.CopelBill.Companion.TAG_VARIANCE
-import com.jera.vision.presentation.util.SpinnerSelectionHelper
 import com.jera.vision.presentation.util.base.BaseActivity
 import com.jera.vision.presentation.util.base.BaseViewModel
+import com.jera.vision.presentation.util.extension.observe
 import com.tbruyelle.rxpermissions2.RxPermissions
 import io.reactivex.disposables.CompositeDisposable
 import org.koin.android.viewmodel.ext.android.viewModel
 import java.io.IOException
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class VisionActivity : BaseActivity() {
 
@@ -37,39 +40,32 @@ class VisionActivity : BaseActivity() {
     private lateinit var textRecognizer: TextRecognizer
 
     private lateinit var binding: ActivityVisionBinding
-    private lateinit var adapter: MonthConsumptionAdapter
-    var currentBill: Bill = CopelBill()
+    private val cameraExecutor: ExecutorService by lazy { Executors.newSingleThreadExecutor() }
+    private val imageAnalyzer by lazy {
+        ImageAnalysis.Builder()
+            .setTargetAspectRatio(AspectRatio.RATIO_16_9)
+            .build()
+            .also {
+                it.setAnalyzer(
+                    cameraExecutor,
+                    TextReaderAnalyzer(::onTextFound)
+                )
+            }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = DataBindingUtil.setContentView(this, R.layout.activity_vision)
         textRecognizer = TextRecognition.getClient()
-        binding.button.setOnClickListener {
-            RxPermissions(this)
-                .request(Manifest.permission.READ_EXTERNAL_STORAGE)
-                .subscribe { granted: Boolean ->
-                    if (granted) {
-                        val galleryIntent =
-                            Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                        startActivityForResult(galleryIntent, GALLERY_REQUEST_CODE)
-                    }
-                }.let(CompositeDisposable()::add)
-        }
-        adapter = MonthConsumptionAdapter()
-        binding.recyclerResult.adapter = adapter
-
-        with(binding.spinnerBillType) {
-            adapter =
-                BillTypesAdapter(this@VisionActivity, R.layout.support_simple_spinner_dropdown_item)
-            onItemSelectedListener = SpinnerSelectionHelper(this, ::onSpinnerItemSelected)
-        }
+        RxPermissions(this)
+            .request(Manifest.permission.CAMERA)
+            .subscribe { granted: Boolean ->
+                if (granted) {
+                    startCamera()
+                }
+            }.let(CompositeDisposable()::add)
     }
 
-    private fun onSpinnerItemSelected(bill: Bill) {
-        currentBill = bill
-    }
-
-    @RequiresApi(Build.VERSION_CODES.P)
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == GALLERY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
@@ -77,17 +73,57 @@ class VisionActivity : BaseActivity() {
                 val bitmap = getBitmap(this)
                 bitmap?.run {
                     textRecognizer.process(InputImage.fromBitmap(this, 0)).addOnSuccessListener {
-                        val monthConsumptionList = currentBill.getConsumptionList(it.textBlocks)
-                        adapter.submitList(monthConsumptionList)
-                        binding.textViewExplanation.text = getString(
-                            if (monthConsumptionList.isEmpty()) R.string.no_month_consumption_text
-                            else R.string.global_blank
-                        )
-                        binding.textViewExplanation.visibility = if (monthConsumptionList.isEmpty()) View.VISIBLE else View.GONE
+
                     }
                 }
             }
         }
+    }
+
+    override fun subscribeUi() {
+        super.subscribeUi()
+        _viewModel.shouldShowSponsor.observe(this) {}
+        _viewModel.sponsorText.observe(this) {
+            Toast.makeText(this, "Patrocinador: $it", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun onTextFound(foundText: String) {
+        _viewModel.onTextFound(foundText)
+    }
+
+    private fun startCamera() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture.addListener(
+            Runnable {
+                val preview = Preview.Builder()
+                    .build()
+                    .also { it.setSurfaceProvider(binding.cameraPreviewView.surfaceProvider) }
+                cameraProviderFuture.get().bind(preview, imageAnalyzer)
+            },
+            ContextCompat.getMainExecutor(this)
+        )
+    }
+
+    private fun ProcessCameraProvider.bind(
+        preview: Preview,
+        imageAnalyzer: ImageAnalysis
+    ) = try {
+        unbindAll()
+        bindToLifecycle(
+            this@VisionActivity,
+            CameraSelector.DEFAULT_BACK_CAMERA,
+            preview,
+            imageAnalyzer
+        )
+    } catch (ise: IllegalStateException) {
+        // Thrown if binding is not done from the main thread
+        Log.e("TAG", "Binding failed", ise)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cameraExecutor.shutdown()
     }
 
     private fun getBitmap(file: Uri): Bitmap? {
@@ -100,50 +136,6 @@ class VisionActivity : BaseActivity() {
             e.printStackTrace()
             null
         }
-    }
-
-
-    // Trying to sort from left to right without messing up the order. Couldn't do it
-    private fun List<Text.Element>.sortedByPixelPosition(): List<Text.Element> {
-
-        val varianceList = mutableListOf<Text.Element>()
-        val parentsIndex = mutableListOf<Int>()
-        var isParent: Boolean
-
-        forEachIndexed { index, element ->
-            isParent = true
-            parentsIndex.forEachIndexed { index2, parentIndex ->
-                if (
-                    element.cornerPoints != null &&
-                    element.cornerPoints!![0].x > varianceList[parentIndex].cornerPoints?.get(0)?.x!! - TAG_VARIANCE &&
-                    isParent
-                ) {
-                    isParent = false
-                    if (index2 == parentsIndex.lastIndex) varianceList.add(element)
-                    else varianceList.add(parentsIndex[index2 + 1] - 1, element)
-                }
-            }
-
-            if (isParent) {
-                varianceList.add(element)
-                parentsIndex.add(index)
-            }
-        }
-
-        val sortedList = mutableListOf<List<Text.Element>>()
-        parentsIndex.forEachIndexed { index, parentIndex ->
-            if (index == parentsIndex.lastIndex) {
-                sortedList.add(varianceList.slice(parentIndex..varianceList.lastIndex))
-            } else {
-                sortedList.add(varianceList.slice(parentIndex until parentsIndex[index + 1]))
-            }
-        }
-
-        val finalList = mutableListOf<Text.Element>()
-        sortedList.sortedBy { it.firstOrNull()?.cornerPoints?.get(0)?.x }
-            .forEach { finalList.addAll(it) }
-
-        return finalList
     }
 
     companion object {

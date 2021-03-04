@@ -22,10 +22,12 @@ abstract class BaseViewModel : ViewModel(), KoinComponent {
     val placeholder: LiveData<Placeholder> get() = _placeholder
     val goTo: LiveData<NavData> get() = _goTo
     val dialog: LiveData<DialogData> get() = _dialog
+    val finish: LiveData<Unit> get() = _finish
 
     private val _placeholder by lazy { MutableLiveData<Placeholder>() }
     private val _goTo by lazy { MutableLiveData<NavData>() }
     private val _dialog by lazy { MutableLiveData<DialogData>() }
+    private val _finish by lazy { MutableLiveData<Unit>() }
 
     protected fun setPlaceholder(placeholder: Placeholder) {
         _placeholder.postValue(placeholder)
@@ -40,6 +42,10 @@ abstract class BaseViewModel : ViewModel(), KoinComponent {
         retryAction: (() -> Unit)? = null
     ) {
         setDialog(errorHandler.getDialogData(throwable, retryAction))
+    }
+
+    protected fun finish(){
+        _finish.value = Unit
     }
 
     protected fun goTo(navData: NavData) {

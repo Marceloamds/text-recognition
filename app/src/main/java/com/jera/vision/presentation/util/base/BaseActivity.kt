@@ -31,6 +31,7 @@ abstract class BaseActivity : AppCompatActivity() {
     open fun subscribeUi() {
         baseViewModel.dialog.observe(this, ::onNextDialog)
         baseViewModel.goTo.observe(this, ::onGoTo)
+        baseViewModel.finish.observe(this) { finish() }
     }
 
     private fun onNextDialog(dialogData: DialogData?) {

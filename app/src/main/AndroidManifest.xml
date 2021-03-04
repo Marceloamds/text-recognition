@@ -33,8 +33,15 @@
             android:configChanges="keyboardHidden|orientation|screenSize"
             android:theme="@style/AppTheme.NoActionbar" />
 
+        <activity
+            android:name=".presentation.view.ar.ARActivity"
+            android:configChanges="keyboardHidden|orientation|screenSize"
+            android:theme="@style/AppTheme.NoActionbar" />
+
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"
             android:value="ocr" />
+
+        <meta-data android:name="com.google.ar.core" android:value="required" />
     </application>
 </manifest>
