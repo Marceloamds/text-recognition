@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Jera Faturas</string>
+    <string name="app_name">POC Rock in Rio</string>
     <!--Global Strings-->
     <string name="global_try_again">Tentar novamente</string>
     <string name="global_ok">OK</string>

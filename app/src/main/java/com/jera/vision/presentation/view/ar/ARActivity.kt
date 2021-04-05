@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import androidx.core.graphics.scaleMatrix
 import androidx.databinding.DataBindingUtil
 import com.google.ar.sceneform.AnchorNode
 import com.google.ar.sceneform.rendering.ModelRenderable
@@ -48,7 +49,7 @@ class ARActivity : BaseActivity() {
         arFragment.arSceneView.isLightDirectionUpdateEnabled = false
         arFragment.arSceneView.isLightEstimationEnabled = false
         arFragment.arSceneView.planeRenderer.isShadowReceiver = false
-        arFragment.setOnTapArPlaneListener { hitResult, plane, motionEvent ->
+        arFragment.setOnTapArPlaneListener { hitResult, _, _ ->
 
             if (customRenderable == null) {
                 return@setOnTapArPlaneListener
@@ -56,6 +57,7 @@ class ARActivity : BaseActivity() {
 
             val anchorNode = AnchorNode(hitResult.createAnchor())
             anchorNode.setParent(arFragment.arSceneView.scene)
+
             TranslatableNode().apply {
                 setParent(anchorNode)
                 addOffset(0f, 2f, -5.2f)

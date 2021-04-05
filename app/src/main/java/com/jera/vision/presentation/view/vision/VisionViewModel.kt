@@ -11,10 +11,10 @@ import kotlinx.coroutines.launch
 class VisionViewModel : BaseViewModel() {
 
     val sponsorText: LiveData<String> get() = _sponsorText
-    val shouldShowSponsor: LiveData<Boolean> get() = _shouldShowSponsor
 
     private val _sponsorText by lazy { MutableLiveData<String>() }
-    private val _shouldShowSponsor by lazy { MutableLiveData<Boolean>() }
+
+    private var shouldOpenAr = true
 
     private val sponsorsList = listOf(
         "Itau",
@@ -27,12 +27,18 @@ class VisionViewModel : BaseViewModel() {
         "Natura"
     )
 
+    fun onResume(){
+        shouldOpenAr = true
+    }
+
     fun onTextFound(foundText: String) {
-        val sponsorIndex = sponsorsList.indexOf(foundText.capitalize())
-        if (sponsorIndex != -1) {
-            _sponsorText.value = sponsorsList[sponsorIndex]
-            goTo(ARNavData())
-            finish()
+        if (shouldOpenAr) {
+            val sponsorIndex = sponsorsList.indexOf(foundText.capitalize())
+            if (sponsorIndex != -1) {
+                _sponsorText.value = sponsorsList[sponsorIndex]
+                goTo(ARNavData())
+                shouldOpenAr = false
+            }
         }
     }
 }
